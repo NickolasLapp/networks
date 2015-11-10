@@ -116,6 +116,7 @@ public class Router {
             }
             System.out.println();
         }
+        System.out.println("DISTANCE VECTOR:");
         for (int i = 0; i < 3; i++) {
             System.out.print(distance[i] + " ");
         }
