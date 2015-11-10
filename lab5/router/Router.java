@@ -35,12 +35,17 @@ public class Router {
 	public Router() {
 
 	}
-
-    private void bellmanFord(boolean source) {
+    /* source is either 0, 1, or 2 representing X, Y, Z respectively.
+       edges[][] is represented as the following matrix:
+                                0 1 2 
+                                0 2 7
+                                1 2 1 
+       where first and second columns are nodes, third column is the weights */
+    private void bellmanFord(int source) {
         double inf = Double.POSITIVE_INFINITY;
         // Step 1: initialize graph
         for (int i = 0; i < 3; i ++) {
-            if (source == true) {
+            if (i == source) {
                 distance[i] = 0;
             } else {
                 distance[i] = inf;
@@ -89,27 +94,27 @@ public class Router {
 		}
 
 		routerId = getRouterId();
-		if (routerId - 'x' < 0 || routerId - 'x' >= port_nums.length) {
+		if (routerId - 'X' < 0 || routerId - 'X' >= port_nums.length) {
 			System.out.println("Invalid router id. Please enter router id"+
-              " between 'x' and '"+ (char) ('x' + port_nums.length - 1) + "'");
+              " between 'X' and '"+ (char) ('X' + port_nums.length - 1) + "'");
 			return;
 		}
 
-		System.out.println("Router ID: " + routerId + " is running on "
-				+ port_nums[routerId - 'x']);
+		System.out.println("Router " + routerId + " is running on port "
+				+ port_nums[routerId - 'X']);
         getdv(lines, routerId);
 	}
 
     private static void getdv(List<String> lines, char routerID) {
         String[] dvStr;
         
-        if (routerID == 'x') {
+        if (routerID == 'X') {
             dvStr = lines.get(1).split("\\s+");
             dv = new int[dvStr.length];
             for (int i = 0; i < dvStr.length; i++) {
                 dv[i] = Integer.parseInt(dvStr[i]);
             }
-            System.out.println("distance vector on router x is:");
+            System.out.println("Distance vector on router X is:");
             System.out.print("<");
             for (int i = 0; i < dv.length; i++){
                 if (i == 0 || i == 1)
@@ -118,13 +123,13 @@ public class Router {
                     System.out.print(dv[i]);
             }
             System.out.println(">");
-        } else if (routerID == 'y') {
+        } else if (routerID == 'Y') {
             dvStr = lines.get(2).split("\\s+");
             dv = new int[dvStr.length];
             for (int i = 0; i < dvStr.length; i++) {
                 dv[i] = Integer.parseInt(dvStr[i]);
             }
-            System.out.println("distance vector on router y is:");
+            System.out.println("Distance vector on router Y is:");
             System.out.print("<");
             for (int i = 0; i < dv.length; i++){
                 if (i == 0 || i == 1)
@@ -133,13 +138,13 @@ public class Router {
                     System.out.print(dv[i]);
             }
             System.out.println(">");
-        } else if (routerID == 'z') {
+        } else if (routerID == 'Z') {
             dvStr = lines.get(3).split("\\s+");
             dv = new int[dvStr.length];
             for (int i = 0; i < dvStr.length; i++) {
                 dv[i] = Integer.parseInt(dvStr[i]);
             }
-            System.out.println("distance vector on router z is:");
+            System.out.println("Distance vector on router Z is:");
             System.out.print("<");
             for (int i = 0; i < dv.length; i++){
                 if (i == 0 || i == 1)
@@ -150,7 +155,7 @@ public class Router {
             System.out.println(">");
 
         } else {
-            System.out.println("Invalid Router ID - please enter x, y or z.");
+            System.out.println("Invalid Router ID - please enter X, Y or Z.");
         }            
     }
 
