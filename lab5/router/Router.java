@@ -26,10 +26,10 @@ import java.util.*;
 
 public class Router {
     private final static String CONF_FILE_NAME = "configuration.txt";
-    private static double[] distance = new double[3];
+    private static int[] distance = new int[3];
     private static int[] predecessor = new int[3];
     private static int[] dv = new int[3]; // distance vector array
-    private static double inf = Double.POSITIVE_INFINITY; // infinity weight
+    private static int inf = 1000000; // infinity weight
     private static int intID = -1; // used to convert char routerID to int
     private static int count = 0;
 
@@ -109,6 +109,17 @@ public class Router {
         getdv(lines, routerId);
         setEdges = createEdges(dv);
         bellmanFord(intID, setEdges); // init distance & predecessor vectors
+        System.out.println("EDGES:");
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                System.out.print(setEdges[i][j] + " ");
+            }
+            System.out.println();
+        }
+        for (int i = 0; i < 3; i++) {
+            System.out.print(distance[i] + " ");
+        }
+        System.out.println();
         /* Need to make a call to connect and read in data here */
     }
 
