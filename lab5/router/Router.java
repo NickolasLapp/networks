@@ -42,7 +42,8 @@ public class Router {
        0 2 7
        1 2 1 
        where first and second columns are nodes, third column is the weights */
-    private static void bellmanFord(int source, int[][] edges) {
+    private static void bellmanFord(int source, int[][] edges, char ridC) {
+        boolean didUpdate = false;
         // Step 1: initialize graph - only once
         if (count == 0) {
             for (int i = 0; i < 3; i ++) {
@@ -61,6 +62,7 @@ public class Router {
                 if ((distance[edges[j][0]] + edges[j][2]) < distance[edges[j][1]]) {
                     distance[edges[j][1]] = distance[edges[j][0]] + edges[j][2];
                     predecessor[edges[j][1]] = edges[j][0];
+                    didUpdate = true;
                 }
             }
         }
@@ -70,6 +72,21 @@ public class Router {
                 System.out.println("ERROR: Graph contains a negative weight"+
                         " cycle");
             }
+        }
+        if (count > 0 && didUpdate == true) {
+            System.out.println("Distance vector on router " + ridC + 
+                    " is updated to:");
+            System.out.print("<");
+            for (int i = 0; i < 3; i++){
+                if (i == 0 || i == 1)
+                    System.out.print(distance[i] + ", ");
+                else
+                    System.out.print(distance[i]);
+            }
+            System.out.println(">");
+        } else if (count > 0) {
+            System.out.println("Distance vector on router " + ridC +
+                    " is not updated");
         }
     }
 
@@ -108,7 +125,7 @@ public class Router {
                 + port_nums[routerId - 'X']);
         getdv(lines, routerId);
         setEdges = createEdges(dv);
-        bellmanFord(intID, setEdges); // init distance & predecessor vectors
+        bellmanFord(intID, setEdges, routerId); // init distance vector
         System.out.println("EDGES:");
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
