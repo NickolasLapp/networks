@@ -29,6 +29,7 @@ import java.net.SocketTimeoutException;
 import java.util.*;
 
 public class Router {
+	private static DatagramSocket recvSock = null;
     private final static String CONF_FILE_NAME = "configuration.txt";
     private static int[] distance = new int[3];
     private static int[] predecessor = new int[3];
@@ -36,6 +37,8 @@ public class Router {
     private static int inf = 1000000; // infinity weight
     private static int intID = -1; // used to convert char routerID to int
     private static int count = 0;
+	private static boolean printNew = false;
+	private static boolean[] recvdFrom = { false, false, false };
 
     public Router() {
 
@@ -46,7 +49,7 @@ public class Router {
        0 2 7
        1 2 1 
        where first and second columns are nodes, third column is the weights */
-    private static void bellmanFord(int source, int[][] edges, char ridC) {
+	private static boolean bellmanFord(int source, int[][] edges, char ridC) {
         boolean didUpdate = false;
         // Step 1: initialize graph - only once
         if (count == 0) {
@@ -58,7 +61,6 @@ public class Router {
                 }
                 predecessor[i] = -1;
             }
-            count++;
         }
         // Step 2: relax edges repeatedly
         for (int i = 0; i < 3; i++) {
@@ -77,7 +79,7 @@ public class Router {
                         " cycle");
             }
         }
-        if (count > 0 && didUpdate == true) {
+		if (count > 0 && didUpdate && printNew) {
             System.out.println("Distance vector on router " + ridC + 
                     " is updated to:");
             System.out.print("<");
@@ -91,7 +93,11 @@ public class Router {
         } else if (count > 0) {
             System.out.println("Distance vector on router " + ridC +
                     " is not updated");
+		} else {
+			count++;
+			printNew = true;
         }
+		return didUpdate;
     }
 
 	public static void main(String args[]) throws Exception {
@@ -127,21 +133,9 @@ public class Router {
 
         System.out.println("Router " + routerId + " is running on port "
                 + port_nums[routerId - 'X']);
-        getdv(lines, routerId);
-        setEdges = createEdges(dv);
+		getdv(lines, routerId);
+		setEdges = createEdges(dv, intID);
         bellmanFord(intID, setEdges, routerId); // init distance vector
-        System.out.println("EDGES:");
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                System.out.print(setEdges[i][j] + " ");
-            }
-            System.out.println();
-        }
-        System.out.println("DISTANCE VECTOR:");
-        for (int i = 0; i < 3; i++) {
-            System.out.print(distance[i] + " ");
-        }
-        System.out.println();
 		runRouter(intID, port_nums);
         /* Need to make a call to connect and read in data here */
     }
@@ -203,14 +197,14 @@ public class Router {
         }            
     }
 
-    private static int[][] createEdges(int[] distVec) {
+	private static int[][] createEdges(int[] distVec, int myID) {
         int[][] edgeList = new int[3][3];
 
-        if (intID == 0) {
+		if (myID == 0) {
             edgeList[0] = new int[]{0, 1, distVec[1]};
             edgeList[1] = new int[]{0, 2, distVec[2]};
             edgeList[2] = new int[]{1, 2, (int)inf};
-        } else if (intID == 1) {
+		} else if (myID == 1) {
             edgeList[0] = new int[]{1, 0, distVec[0]};
             edgeList[1] = new int[]{1, 2, distVec[2]};
             edgeList[2] = new int[]{0, 2, (int)inf};
@@ -238,20 +232,32 @@ public class Router {
 	// packets
 	// Always listen for packets to receive
 	private static void runRouter(int routerId, int[] ports) throws Exception {
-		boolean updatedVectorTable = true;
+		char newRouterId = 'A';
+		boolean first = true;
+
 
 		while (true) {
-			if (updatedVectorTable) {
+			char tempRouterID = receivePackets(routerId, ports[routerId]);
+			if (!first)
+				newRouterId = tempRouterID;
+			else
+				first = false;
+
+			Thread.sleep(10000);
+			if (newRouterId != 'N') {
 				int[] distanceWithID = new int[distance.length + 1];
 				for (int i = 0; i < distance.length; i++)
 					distanceWithID[i] = distance[i];
 				distanceWithID[distanceWithID.length - 1] = routerId + 'X';
 
-				sendPacket(routerId, ports, toByteArray(distanceWithID));
-				updatedVectorTable = false;
+				if(newRouterId == 'A')
+					sendPacket(routerId, ports, toByteArray(distanceWithID));
+				else
+					sendPacket(routerId, ports[(int) (newRouterId - 'X')],
+							toByteArray(distanceWithID));
+				newRouterId = 'N';
 			}
 
-			updatedVectorTable = receivePackets(routerId, ports[routerId]);
 		}
 	}
 
@@ -259,19 +265,23 @@ public class Router {
 	// converts them to an int array to put them into the edges[][] matrix and
 	// then to run belmann ford.
 	// It detects packets received with a 500mS timeout.
-	private static boolean receivePackets(int routerId, int port)
+	private static char receivePackets(int routerId, int port)
 			throws IOException {
-		boolean toRet = false;
+		char toRet = 'N';
 		while (true) {
-			DatagramSocket recvSock = null;
 			try {
-				recvSock = new DatagramSocket(port);
+				if (recvSock == null)
+					recvSock = new DatagramSocket(port);
 				byte[] data = new byte[1024];
 				DatagramPacket recvPacket = new DatagramPacket(data,
 						data.length);
 				recvSock.setSoTimeout(500);
 				recvSock.receive(recvPacket);
-				recvSock.close();
+
+				if (recvPacket.getLength() != 4)
+					System.out
+							.println("You are reading more than 4 bytes. Bytes read = "
+									+ recvPacket.getLength());
 
 				int[] distanceRecvd = new int[recvPacket.getLength()-1];
 				for (int i = 0; i < recvPacket.getLength()-1; i++)
@@ -282,25 +292,20 @@ public class Router {
 						+ routerChar + ": <" + distanceRecvd[0] + ", "
 						+ distanceRecvd[1] + ", " + distanceRecvd[2] + ">");
 				
-				int[][] edges = createEdges(distanceRecvd);
+				int[][] edges = createEdges(distanceRecvd,
+						(int) routerChar - 'X');
 
-				System.out.println("Edges: ");
-				for (int i = 0; i < edges.length; i++) {
-					for (int j = 0; j < edges.length; j++)
-						System.out.print(edges[i][j] + "\t");
-					System.out.println();
+				toRet = bellmanFord(intID, edges, (char) (intID + 'X')) ? 'A'
+						: toRet;
+				if (!recvdFrom[(int) routerChar - 'X']) {
+					// System.out.println("First time receiving from router: "
+					// + routerChar + " Force update send");
+					recvdFrom[(int) routerChar - 'X'] = true;
+					toRet = toRet == 'A' ? 'A' : routerChar;
 				}
 
-				int oldDist[] = distance.clone();
-				bellmanFord(intID, edges, (char) (intID + 'X'));
-				for (int i = 0; i < oldDist.length; i++)
-					if (oldDist[i] != distance[i])
-						toRet = true;
-				recvSock.close();
 			} catch (SocketTimeoutException se) {
 				// timeout expired
-				if (recvSock != null)
-					recvSock.close();
 				return toRet;
 			}
 		}
@@ -310,6 +315,8 @@ public class Router {
 	private static void sendPacket(int routerId, int[] ports, byte[] data)
 			throws Exception {
 		DatagramSocket sendSock = new DatagramSocket();
+		// System.out.println("\n\nIn sendPacket, ports = " + ports[0] + ", "
+		// + ports[1] + ", " + ports[2] + " and routerId = " + routerId);
 		for (int i = 0; i < ports.length; i++) {
 			if (i == routerId)
 				continue;
@@ -317,6 +324,17 @@ public class Router {
 					InetAddress.getByName("localhost"), ports[i]);
 			sendSock.send(sendPacket);
 		}
+		sendSock.close();
+	}
+	
+	private static void sendPacket(int routerId, int port, byte[] data)
+			throws Exception {
+		DatagramSocket sendSock = new DatagramSocket();
+		// System.out.println("\n\nIn sendPacket, ports = " + ports[0] + ", "
+		// + ports[1] + ", " + ports[2] + " and routerId = " + routerId);
+			DatagramPacket sendPacket = new DatagramPacket(data, data.length,
+					InetAddress.getByName("localhost"), port);
+			sendSock.send(sendPacket);
 		sendSock.close();
 	}
 
