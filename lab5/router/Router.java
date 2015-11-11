@@ -189,13 +189,13 @@ public class Router {
             edgeList[1] = new int[]{0, 2, distVec[2]};
             edgeList[2] = new int[]{1, 2, (int)inf};
         } else if (intID == 1) {
-            edgeList[0] = new int[]{0, 1, distVec[0]};
-            edgeList[1] = new int[]{0, 2, (int)inf};
-            edgeList[2] = new int[]{1, 2, distVec[2]};
+            edgeList[0] = new int[]{1, 0, distVec[0]};
+            edgeList[1] = new int[]{1, 2, distVec[2]};
+            edgeList[2] = new int[]{0, 2, (int)inf};
         } else {
-            edgeList[0] = new int[]{0, 1, (int)inf};
-            edgeList[1] = new int[]{0, 2, distVec[0]};
-            edgeList[2] = new int[]{1, 2, distVec[1]};
+            edgeList[0] = new int[]{2, 0, distVec[0]};
+            edgeList[1] = new int[]{2, 1, distVec[1]};
+            edgeList[2] = new int[]{0, 1, (int)inf};
         }
 
         return edgeList;
