@@ -283,8 +283,16 @@ public class Router {
 						+ distanceRecvd[1] + ", " + distanceRecvd[2] + ">");
 				
 				int[][] edges = createEdges(distanceRecvd);
+
+				System.out.println("Edges: ");
+				for (int i = 0; i < edges.length; i++) {
+					for (int j = 0; j < edges.length; j++)
+						System.out.print(edges[i][j] + "\t");
+					System.out.println();
+				}
+
 				int oldDist[] = distance.clone();
-				bellmanFord(intID, edges);
+				bellmanFord(intID, edges, (char) (intID + 'X'));
 				for (int i = 0; i < oldDist.length; i++)
 					if (oldDist[i] != distance[i])
 						toRet = true;
