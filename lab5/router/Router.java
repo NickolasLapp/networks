@@ -22,6 +22,10 @@
 package router;
 
 import java.io.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.*;
 
 public class Router {
@@ -90,7 +94,7 @@ public class Router {
         }
     }
 
-    public static void main(String args[]) throws IOException {
+	public static void main(String args[]) throws Exception {
         int[] port_nums;
         String[] portStr;
         char routerId;
@@ -138,6 +142,7 @@ public class Router {
             System.out.print(distance[i] + " ");
         }
         System.out.println();
+		runRouter(intID, port_nums);
         /* Need to make a call to connect and read in data here */
     }
 
@@ -228,4 +233,89 @@ public class Router {
                 return input.charAt(0);
         }
     }
+
+	// Main method; If first time, or bellmanford indicates dv update, send
+	// packets
+	// Always listen for packets to receive
+	private static void runRouter(int routerId, int[] ports) throws Exception {
+		boolean updatedVectorTable = true;
+
+		while (true) {
+			if (updatedVectorTable) {
+				int[] distanceWithID = new int[distance.length + 1];
+				for (int i = 0; i < distance.length; i++)
+					distanceWithID[i] = distance[i];
+				distanceWithID[distanceWithID.length - 1] = routerId + 'X';
+
+				sendPacket(routerId, ports, toByteArray(distanceWithID));
+				updatedVectorTable = false;
+			}
+
+			updatedVectorTable = receivePackets(routerId, ports[routerId]);
+		}
+	}
+
+	// this function listens for packets on the router's port. When received, it
+	// converts them to an int array to put them into the edges[][] matrix and
+	// then to run belmann ford.
+	// It detects packets received with a 500mS timeout.
+	private static boolean receivePackets(int routerId, int port)
+			throws IOException {
+		boolean toRet = false;
+		while (true) {
+			DatagramSocket recvSock = null;
+			try {
+				recvSock = new DatagramSocket(port);
+				byte[] data = new byte[1024];
+				DatagramPacket recvPacket = new DatagramPacket(data,
+						data.length);
+				recvSock.setSoTimeout(500);
+				recvSock.receive(recvPacket);
+				recvSock.close();
+
+				int[] distanceRecvd = new int[recvPacket.getLength()-1];
+				for (int i = 0; i < recvPacket.getLength()-1; i++)
+					distanceRecvd[i] = (int) data[i];
+				
+				char routerChar = (char)data[recvPacket.getLength()-1];
+				System.out.println("Receives distance vector from Router "
+						+ routerChar + ": <" + distanceRecvd[0] + ", "
+						+ distanceRecvd[1] + ", " + distanceRecvd[2] + ">");
+				
+				int[][] edges = createEdges(distanceRecvd);
+				int oldDist[] = distance.clone();
+				bellmanFord(intID, edges);
+				for (int i = 0; i < oldDist.length; i++)
+					if (oldDist[i] != distance[i])
+						toRet = true;
+				recvSock.close();
+			} catch (SocketTimeoutException se) {
+				// timeout expired
+				if (recvSock != null)
+					recvSock.close();
+				return toRet;
+			}
+		}
+	}
+
+	// This function sends the router's Distance Vector to it's neighbors
+	private static void sendPacket(int routerId, int[] ports, byte[] data)
+			throws Exception {
+		DatagramSocket sendSock = new DatagramSocket();
+		for (int i = 0; i < ports.length; i++) {
+			if (i == routerId)
+				continue;
+			DatagramPacket sendPacket = new DatagramPacket(data, data.length,
+					InetAddress.getByName("localhost"), ports[i]);
+			sendSock.send(sendPacket);
+		}
+		sendSock.close();
+	}
+
+	private static byte[] toByteArray(int[] convertMe) {
+		byte[] ret = new byte[convertMe.length];
+		for (int i = 0; i < convertMe.length; i++)
+			ret[i] = (byte) convertMe[i];
+		return ret;
+	}
 }
